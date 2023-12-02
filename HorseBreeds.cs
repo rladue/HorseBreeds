@@ -11,8 +11,6 @@ using Oxide.Game.Rust;
 using Rust.Modular;
 using UnityEngine;
 
-///To Do
-/// include costs per breed
 
 namespace Oxide.Plugins
 {
