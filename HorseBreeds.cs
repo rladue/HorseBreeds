@@ -130,20 +130,54 @@ namespace Oxide.Plugins
         [ChatCommand("horse")]
         private void horseChatCmd(BasePlayer player, string command, string[] args)
         {
-            //null check
-            if (player == null || command == null || args == null) return;
-
             //check for player permission
             if (!(permission.UserHasPermission(player.UserIDString, "horsebreeds.use")))
             {
-                Player.Message(player, "You do not have permission to use this command.");
+                Player.Message(player, "Horse Breeds:You do not have permission to use this command.");
                 return;
             }
+
+            //null and error checks
+            if (player == null || command == null || args == null || args.Length != 1)
+            {
+                Player.Message(player, "Horse Breeds: Syntax Error. Use \"/horse help\" for more info.");
+                return;
+            }
+
+             if (args[0] == "help")
+             {
+                 string currency = null;
+                 if (_config.currencySR)
+                 {
+                     currency = "RP";
+                 }
+                 if (_config.currencyEC)
+                 {
+                     currency = "Dollars";
+                 }
+                 if (_config.currencyItem)
+                 {
+                     currency = _config.itemToUse;
+                 }
+                 Player.Message(player, $"Horse Breeds:\n\nTo change the breed of your horse, use \"/horse (breed)\" while sitting on a horse. (breed) can either be the name or the numerical value of the breed below.\n\n" +
+                     $"Breed # - Breed Name - Cost\n" +
+                     $"0 - Appalosa - {_config.costs.cost0} {currency}\n" +
+                     $"1 - Bay - {_config.costs.cost1} {currency}\n" +
+                     $"2 - Buckskin - {_config.costs.cost2} {currency}\n" +
+                     $"3 - Chestnut - {_config.costs.cost3} {currency}\n" +
+                     $"4 - Dapple Grey - {_config.costs.cost4} {currency}\n" +
+                     $"5 - Piebald - {_config.costs.cost5} {currency}\n" +
+                     $"6 - Pinto - {_config.costs.cost6} {currency}\n" +
+                     $"7 - Red Roan - {_config.costs.cost7} {currency}\n" +
+                     $"8 - White Thoroughbred - {_config.costs.cost8} {currency}\n" +
+                     $"9 - Black Thoroughbred - {_config.costs.cost9} {currency}");
+                 return;
+             }
 
             //Mounted on Horse check
             if (player.GetMountedVehicle() == null || !player.GetMountedVehicle().ToString().Contains("ridablehorse"))
             {
-                Player.Message(player, "You must be on a horse to use this command.");
+                Player.Message(player, "Horse Breeds:You must be on a horse to use this command.");
                 return;
             }
 
@@ -153,7 +187,7 @@ namespace Oxide.Plugins
             double cost;
             if (!IsValidBreed(args[0], out breed, out breedName, out cost))
             {
-                Puts("Error: Invalid breed type");
+                Player.Message(player, "Horse Breeds: Invalid Breed. Use \"/horse help\" for more info.");
                 return;
             }
 
@@ -165,9 +199,13 @@ namespace Oxide.Plugins
         private void horseConsoleCmd(ConsoleSystem.Arg arg)
         {
             //only admin and console can use
-            if (!arg.IsAdmin) return;
+            if (!arg.IsAdmin || arg.Args == null) return;
 
-            if (arg.Args == null || arg.Args[1].Length < 1) return;
+            if (arg.Args.Length != 2)
+            {
+                Puts("Syntax Error");
+                return;
+            }
 
             //player checks
             var target = RustCore.FindPlayer(arg.Args[0]);
@@ -193,14 +231,12 @@ namespace Oxide.Plugins
             double cost;
             if (!IsValidBreed(arg.Args[1], out breed, out breedName, out cost))
             {
-                Puts("Error: Invalid breed type");
+                Puts("Invalid breed type");
                 return;
             }
 
             if (permission.UserHasPermission(target.UserIDString, "horsebreeds.bypass")) cost = 0;
             ChangeHorse(target, breed, breedName, cost);
-
-
         }
 
         #endregion
@@ -209,6 +245,16 @@ namespace Oxide.Plugins
 
         private void ChangeHorse(BasePlayer player, int breed, string breedName, double cost)
         {
+            //get player's horse
+            var horse = player.GetMountedVehicle() as RidableHorse;
+
+            //check if horse is already the breed requested
+            if (horse.currentBreed == breed)
+            {
+                Player.Message(player, $"Horse Breeds: Your horse is already a {breedName}");
+                return;
+            }
+
             // code to run for ServerRewards
             if (_config.currencySR)
             {
@@ -221,12 +267,10 @@ namespace Oxide.Plugins
                     return;
                 }
 
-                var horse = player.GetMountedVehicle() as RidableHorse;
-
                 //apply horse breed and charge ServerRewards
                 horse.ApplyBreed(breed);
                 ServerRewards?.Call("TakePoints", player.userID, (int)Math.Round(cost));
-                Player.Message(player, $"Your horse breed is now {breedName}");
+                Player.Message(player, $"Horse Breeds: Your horse is now a {breedName}");
                 Puts($"{player.displayName}'s horse breed has been changed to {breedName}.");
                 return;
             }
@@ -243,12 +287,10 @@ namespace Oxide.Plugins
                     return;
                 }
 
-                var horse = player.GetMountedVehicle() as RidableHorse;
-
                 //apply horse breed and charge Economics
                 horse.ApplyBreed(breed);
                 Economics?.Call("Withdraw", player.userID, cost);
-                Player.Message(player, $"Your horse breed is now {breedName}");
+                Player.Message(player, $"Horse Breeds: Your horse is now a {breedName}");
                 Puts($"{player.displayName}'s horse breed has been changed to {breedName}.");
                 return;
             }
@@ -259,7 +301,6 @@ namespace Oxide.Plugins
                 //search for item in player inventory
                 if (player.inventory.FindItemByItemName(_config.itemToUse) != null)
                 {
-                    var horse = player.GetMountedVehicle() as RidableHorse;
                     Item item = player.inventory.FindItemByItemName(_config.itemToUse);
                     int itemAmount = player.inventory.GetAmount(item.info.itemid);
                     List<Item> list = new List<Item>(); //needed for player.inventory.Take method
@@ -269,7 +310,7 @@ namespace Oxide.Plugins
                     {
                         player.inventory.Take(list, item.info.itemid, (int)cost); //convert cost to int since items have to be whole numbers
                         horse.ApplyBreed(breed);
-                        Player.Message(player, $"Your horse breed is now {breedName}");
+                        Player.Message(player, $"Horse Breeds: Your horse is now a {breedName}");
                         Puts($"{player.displayName}'s horse breed has been changed to {breedName}.");
                         return;
                     }
@@ -279,15 +320,19 @@ namespace Oxide.Plugins
                         return;
                     }
                 }
+                else
+                {
+                    Player.Message(player, "Horse Breeds: Insufficient balance");
+                    return;
+                }
             }
 
             //code to run when not using any currency
             else
             {
-                var horse = player.GetMountedVehicle() as RidableHorse;
                 //apply horse breed and charge Economics
                 horse.ApplyBreed(breed);
-                Player.Message(player, $"Your horse breed is now {breedName}");
+                Player.Message(player, $"Horse Breeds: Your horse is now a {breedName}");
                 Puts($"{player.displayName}'s horse breed has been changed to {breedName}.");
                 return;
             }
