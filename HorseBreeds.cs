@@ -16,7 +16,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Horse Breeds", "iLakSkiL", "1.0.0")]
+    [Info("Horse Breeds", "iLakSkiL", "1.1.0")]
     [Description("Change the breed of your horse.")]
     public class HorseBreeds : RustPlugin
     {
@@ -33,6 +33,12 @@ namespace Oxide.Plugins
 
             [JsonProperty(PropertyName = "Use Economics")]
             public bool currencyEC = false;
+
+            [JsonProperty(PropertyName = "Use Item as Currency")]
+            public bool currencyItem = false;
+
+            [JsonProperty(PropertyName = "Item Short Name")]
+            public string itemToUse = "scrap";
 
             [JsonProperty(PropertyName = "Horse Breed Costs")]
             public Costs costs = new Costs();
@@ -102,10 +108,17 @@ namespace Oxide.Plugins
         {
             permission.RegisterPermission("horsebreeds.use", this);
             permission.RegisterPermission("horsebreeds.bypass", this);
-            //check for using both currencies
-            if (_config.currencySR && _config.currencyEC)
+            //check for using more than one currency type
+            if ((_config.currencySR && _config.currencyEC) || (_config.currencySR && _config.currencyItem) || (_config.currencyItem && _config.currencyEC))
             {
-                Puts("ERROR: Cannot use both ServerRewards and Economics. Neither currency will be used.");
+                Puts("ERROR: Cannot use more than one currency type. Default config loaded.");
+                LoadDefaultConfig();
+            }
+
+            //check for _config.itemToUse not being string
+            if (!(_config.itemToUse is string) && (_config.itemToUse != null))
+            {
+                Puts("ERROR: Item Short Name listed as currency is not valid. Default config loaded.");
                 LoadDefaultConfig();
             }
         }
@@ -240,7 +253,35 @@ namespace Oxide.Plugins
                 return;
             }
 
-            //code to run when not using either currency
+            //code to run for Item as curreny
+            if (_config.currencyItem)
+            {   
+                //search for item in player inventory
+                if (player.inventory.FindItemByItemName(_config.itemToUse) != null)
+                {
+                    var horse = player.GetMountedVehicle() as RidableHorse;
+                    Item item = player.inventory.FindItemByItemName(_config.itemToUse);
+                    int itemAmount = player.inventory.GetAmount(item.info.itemid);
+                    List<Item> list = new List<Item>(); //needed for player.inventory.Take method
+
+                    //Check if player has enough for the cost of their selection
+                    if (cost <= itemAmount)
+                    {
+                        player.inventory.Take(list, item.info.itemid, (int)cost); //convert cost to int since items have to be whole numbers
+                        horse.ApplyBreed(breed);
+                        Player.Message(player, $"Your horse breed is now {breedName}");
+                        Puts($"{player.displayName}'s horse breed has been changed to {breedName}.");
+                        return;
+                    }
+                    else
+                    {
+                        Player.Message(player, "Horse Breeds: Insufficient balance");
+                        return;
+                    }
+                }
+            }
+
+            //code to run when not using any currency
             else
             {
                 var horse = player.GetMountedVehicle() as RidableHorse;
