@@ -173,7 +173,7 @@ namespace Oxide.Plugins
              }
 
             //Mounted on Horse check
-            if (player.GetMountedVehicle() == null || !player.GetMountedVehicle().ToString().Contains("ridablehorse"))
+            if (player.GetMountedVehicle() == null || !player.GetMountedVehicle().ToString().Contains("ridablehorse2"))
             {
                 Player.Message(player, "Horse Breeds:You must be on a horse to use this command.");
                 return;
@@ -217,7 +217,7 @@ namespace Oxide.Plugins
                 Puts($"Player '{arg.Args[0]}' is not online");
                 return;
             }
-            if (target.GetMountedVehicle() == null || !target.GetMountedVehicle().ToString().Contains("ridablehorse"))
+            if (target.GetMountedVehicle() == null || !target.GetMountedVehicle().ToString().Contains("ridablehorse2"))
             {
                 Puts($"Player '{arg.Args[0]}' is not on a horse");
                 return;
@@ -244,10 +244,10 @@ namespace Oxide.Plugins
         private void ChangeHorse(BasePlayer player, int breed, string breedName, double cost)
         {
             //get player's horse
-            var horse = player.GetMountedVehicle() as RidableHorse;
+            var horse = player.GetMountedVehicle() as RidableHorse2;
 
             //check if horse is already the breed requested
-            if (horse.currentBreed == breed)
+            if (horse.currentBreedIndex == breed)
             {
                 Player.Message(player, $"Horse Breeds: Your horse is already a {breedName}");
                 return;
@@ -266,7 +266,7 @@ namespace Oxide.Plugins
                 }
 
                 //apply horse breed and charge ServerRewards
-                horse.ApplyBreed(breed);
+                horse.SetBreed(breed);
                 ServerRewards?.Call("TakePoints", player.userID, (int)Math.Round(cost));
                 Player.Message(player, $"Horse Breeds: Your horse is now a {breedName}");
                 Puts($"{player.displayName}'s horse breed has been changed to {breedName}.");
@@ -286,7 +286,7 @@ namespace Oxide.Plugins
                 }
 
                 //apply horse breed and charge Economics
-                horse.ApplyBreed(breed);
+                horse.SetBreed(breed);
                 Economics?.Call("Withdraw", player.userID, cost);
                 Player.Message(player, $"Horse Breeds: Your horse is now a {breedName}");
                 Puts($"{player.displayName}'s horse breed has been changed to {breedName}.");
@@ -307,7 +307,7 @@ namespace Oxide.Plugins
                     if (cost <= itemAmount)
                     {
                         player.inventory.Take(list, item.info.itemid, (int)cost); //convert cost to int since items have to be whole numbers
-                        horse.ApplyBreed(breed);
+                        horse.SetBreed(breed);
                         Player.Message(player, $"Horse Breeds: Your horse is now a {breedName}");
                         Puts($"{player.displayName}'s horse breed has been changed to {breedName}.");
                         return;
@@ -329,7 +329,7 @@ namespace Oxide.Plugins
             else
             {
                 //apply horse breed and charge Economics
-                horse.ApplyBreed(breed);
+                horse.SetBreed(breed);
                 Player.Message(player, $"Horse Breeds: Your horse is now a {breedName}");
                 Puts($"{player.displayName}'s horse breed has been changed to {breedName}.");
                 return;
